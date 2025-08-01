@@ -28,7 +28,7 @@ from langchain_core.output_parsers import StrOutputParser
 # Add the parent directory to the path since we work with notebooks
 import sys
 import os
-current_dir = os.path.dirname(os.path.abspath(_file_))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
