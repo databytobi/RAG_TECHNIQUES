@@ -6,7 +6,7 @@ using various metrics from the deepeval library.
 
 Dependencies:
 - deepeval
-- langchain_openai
+- langchain_core
 - json
 
 Custom modules:
@@ -15,24 +15,24 @@ Custom modules:
 
 import json
 from typing import List, Tuple, Dict, Any
+import os
+import sys
 
 from deepeval import evaluate
 from deepeval.metrics import GEval, FaithfulnessMetric, ContextualRelevancyMetric
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-
 from deepeval.models.gemini_model import GeminiModel
 
-llm = GeminiModel(model="gemini-2.0-flash", api_key=os.getenv("GOOGLE_API_KEY"))
+from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.language_models import BaseChatModel
+from custom_gemini_wrapper import GeminiChatWrapper  # 🟢 Your wrapper
 
+# Use Gemini wrapper for LLM
+llm: BaseChatModel = GeminiChatWrapper(model="gemini-2.0-flash", temperature=0)
 
-# 09/15/24 kimmeyh Added path where helper functions is located to the path
-# Add the parent directory to the path since we work with notebooks
-import sys
-import os
-current_dir = os.path.dirname(os.path.abspath(__file__))
+# Path setup for helper functions
+current_dir = os.path.dirname(os.path.abspath(_file_))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
@@ -48,18 +48,6 @@ def create_deep_eval_test_cases(
     generated_answers: List[str],
     retrieved_documents: List[str]
 ) -> List[LLMTestCase]:
-    """
-    Create a list of LLMTestCase objects for evaluation.
-
-    Args:
-        questions (List[str]): List of input questions.
-        gt_answers (List[str]): List of ground truth answers.
-        generated_answers (List[str]): List of generated answers.
-        retrieved_documents (List[str]): List of retrieved documents.
-
-    Returns:
-        List[LLMTestCase]: List of LLMTestCase objects.
-    """
     return [
         LLMTestCase(
             input=question,
@@ -100,19 +88,7 @@ relevance_metric = ContextualRelevancyMetric(
 def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     """
     Evaluates a RAG system using predefined test questions and metrics.
-    
-    Args:
-        retriever: The retriever component to evaluate
-        num_questions: Number of test questions to generate
-    
-    Returns:
-        Dict containing evaluation metrics
     """
-
-    # Initialize LLM
-    llm = ChatGoogleGenerativeAI(temperature=0, model_name="gemini-2.0-flash")
-
-    # Create evaluation prompt
     eval_prompt = PromptTemplate.from_template("""
     Evaluate the following retrieval results for the question.
     
@@ -127,12 +103,7 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     Provide ratings in JSON format:
     """)
 
-    # Create evaluation chain
-    eval_chain = (
-        eval_prompt 
-        | llm 
-        | StrOutputParser()
-    )
+    eval_chain = eval_prompt | llm | StrOutputParser()
 
     # Generate test questions
     question_gen_prompt = PromptTemplate.from_template(
@@ -142,14 +113,11 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
 
     questions = question_chain.invoke({"num_questions": num_questions}).split("\n")
 
-    # Evaluate each question
     results = []
     for question in questions:
-        # Get retrieval results
         context = retriever.get_relevant_documents(question)
         context_text = "\n".join([doc.page_content for doc in context])
 
-        # Evaluate results
         eval_result = eval_chain.invoke({
             "question": question,
             "context": context_text
@@ -163,11 +131,9 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     }
 
 def calculate_average_scores(results: List[Dict]) -> Dict[str, float]:
-    """Calculate average scores across all evaluation results."""
-    # Implementation depends on the exact format of your results
+    # Stub: fill in based on your expected output format (likely a list of JSON strings)
     pass
 
 if _name_ == "_main_":
-    # Add any necessary setup or configuration here
-    # Example: evaluate_rag(your_chunks_query_retriever_function)
+    # Example call: evaluate_rag(your_retriever)
     pass
