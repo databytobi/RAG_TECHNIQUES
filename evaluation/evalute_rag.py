@@ -138,9 +138,10 @@ def calculate_average_scores(results: List[Dict]) -> Dict[str, float]:
     # TODO: Implement score extraction logic based on JSON format in results
     pass
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     # Example:
     # from helper_functions import chunks_query_retriever
     # evaluate_rag(chunks_query_retriever)
     pass
+
 
