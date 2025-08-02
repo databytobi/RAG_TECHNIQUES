@@ -6,7 +6,6 @@ using various metrics from the deepeval library.
 
 Dependencies:
 - deepeval
-- langchain_core
 - json
 
 Custom modules:
@@ -21,17 +20,11 @@ import sys
 from deepeval import evaluate
 from deepeval.metrics import GEval, FaithfulnessMetric, ContextualRelevancyMetric
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-
-
+from deepeval.models import GeminiModel
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.language_models import BaseChatModel
-from custom_gemini_wrapper import GeminiChatWrapper  # 🟢 Your wrapper
 
-# Use Gemini wrapper for LLM
-llm: BaseChatModel = GeminiChatWrapper(model="gemini-2.0-flash", temperature=0)
-
-# Path setup for helper functions
+# Add the parent directory to the path since we work with notebooks
 current_dir = os.path.dirname(os.path.abspath(_file_))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
@@ -40,6 +33,13 @@ from helper_functions import (
     create_question_answer_from_context_chain,
     answer_question_from_context,
     retrieve_context_per_question
+)
+
+# Initialize Gemini LLM
+llm = GeminiModel(
+    model_name="gemini-2.0-flash",  # or "gemini-1.5-pro"
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    temperature=0
 )
 
 def create_deep_eval_test_cases(
@@ -63,7 +63,7 @@ def create_deep_eval_test_cases(
 # Define evaluation metrics
 correctness_metric = GEval(
     name="Correctness",
-    model="gemini-2.0-flash",
+    model=llm,
     evaluation_params=[
         LLMTestCaseParams.EXPECTED_OUTPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT
@@ -75,13 +75,13 @@ correctness_metric = GEval(
 
 faithfulness_metric = FaithfulnessMetric(
     threshold=0.7,
-    model="gemini-2.0-flash",
+    model=llm,
     include_reason=False
 )
 
 relevance_metric = ContextualRelevancyMetric(
     threshold=1,
-    model="gemini-2.0-flash",
+    model=llm,
     include_reason=True
 )
 
@@ -103,7 +103,11 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     Provide ratings in JSON format:
     """)
 
-    eval_chain = eval_prompt | llm | StrOutputParser()
+    eval_chain = (
+        eval_prompt 
+        | llm 
+        | StrOutputParser()
+    )
 
     # Generate test questions
     question_gen_prompt = PromptTemplate.from_template(
@@ -131,9 +135,11 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     }
 
 def calculate_average_scores(results: List[Dict]) -> Dict[str, float]:
-    # Stub: fill in based on your expected output format (likely a list of JSON strings)
+    # TODO: Implement score extraction logic based on JSON format in results
     pass
 
 if _name_ == "_main_":
-    # Example call: evaluate_rag(your_retriever)
+    # Example:
+    # from helper_functions import chunks_query_retriever
+    # evaluate_rag(chunks_query_retriever)
     pass
