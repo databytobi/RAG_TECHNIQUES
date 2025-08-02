@@ -6,7 +6,6 @@ using various metrics from the deepeval library.
 
 Dependencies:
 - deepeval
-- langchain_openai
 - json
 
 Custom modules:
@@ -15,19 +14,17 @@ Custom modules:
 
 import json
 from typing import List, Tuple, Dict, Any
+import os
+import sys
 
 from deepeval import evaluate
 from deepeval.metrics import GEval, FaithfulnessMetric, ContextualRelevancyMetric
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from langchain_google_genai import ChatGoogleGenerativeAI
+from deepeval.models import GeminiModel
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-
-# 09/15/24 kimmeyh Added path where helper functions is located to the path
 # Add the parent directory to the path since we work with notebooks
-import sys
-import os
 current_dir = os.path.dirname(os.path.abspath(_file_))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
@@ -38,24 +35,19 @@ from helper_functions import (
     retrieve_context_per_question
 )
 
+# Initialize Gemini LLM
+llm = GeminiModel(
+    model_name="gemini-2.0-flash",  # or "gemini-1.5-pro"
+    api_key=os.getenv("GOOGLE_API_KEY"),
+    temperature=0
+)
+
 def create_deep_eval_test_cases(
     questions: List[str],
     gt_answers: List[str],
     generated_answers: List[str],
     retrieved_documents: List[str]
 ) -> List[LLMTestCase]:
-    """
-    Create a list of LLMTestCase objects for evaluation.
-
-    Args:
-        questions (List[str]): List of input questions.
-        gt_answers (List[str]): List of ground truth answers.
-        generated_answers (List[str]): List of generated answers.
-        retrieved_documents (List[str]): List of retrieved documents.
-
-    Returns:
-        List[LLMTestCase]: List of LLMTestCase objects.
-    """
     return [
         LLMTestCase(
             input=question,
@@ -71,7 +63,7 @@ def create_deep_eval_test_cases(
 # Define evaluation metrics
 correctness_metric = GEval(
     name="Correctness",
-    model="gemini-2.0-flash",
+    model=llm,
     evaluation_params=[
         LLMTestCaseParams.EXPECTED_OUTPUT,
         LLMTestCaseParams.ACTUAL_OUTPUT
@@ -83,32 +75,20 @@ correctness_metric = GEval(
 
 faithfulness_metric = FaithfulnessMetric(
     threshold=0.7,
-    model="gemini-2.0-flash",
+    model=llm,
     include_reason=False
 )
 
 relevance_metric = ContextualRelevancyMetric(
     threshold=1,
-    model="gemini-2.0-flash",
+    model=llm,
     include_reason=True
 )
 
 def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     """
     Evaluates a RAG system using predefined test questions and metrics.
-    
-    Args:
-        retriever: The retriever component to evaluate
-        num_questions: Number of test questions to generate
-    
-    Returns:
-        Dict containing evaluation metrics
     """
-
-    # Initialize LLM
-    llm = ChatGoogleGenerativeAI(temperature=0, model_name="gemini-2.0-flash")
-
-    # Create evaluation prompt
     eval_prompt = PromptTemplate.from_template("""
     Evaluate the following retrieval results for the question.
     
@@ -123,7 +103,6 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     Provide ratings in JSON format:
     """)
 
-    # Create evaluation chain
     eval_chain = (
         eval_prompt 
         | llm 
@@ -138,14 +117,11 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
 
     questions = question_chain.invoke({"num_questions": num_questions}).split("\n")
 
-    # Evaluate each question
     results = []
     for question in questions:
-        # Get retrieval results
         context = retriever.get_relevant_documents(question)
         context_text = "\n".join([doc.page_content for doc in context])
 
-        # Evaluate results
         eval_result = eval_chain.invoke({
             "question": question,
             "context": context_text
@@ -159,11 +135,11 @@ def evaluate_rag(retriever, num_questions: int = 5) -> Dict[str, Any]:
     }
 
 def calculate_average_scores(results: List[Dict]) -> Dict[str, float]:
-    """Calculate average scores across all evaluation results."""
-    # Implementation depends on the exact format of your results
+    # TODO: Implement score extraction logic based on JSON format in results
     pass
 
 if _name_ == "_main_":
-    # Add any necessary setup or configuration here
-    # Example: evaluate_rag(your_chunks_query_retriever_function)
+    # Example:
+    # from helper_functions import chunks_query_retriever
+    # evaluate_rag(chunks_query_retriever)
     pass
