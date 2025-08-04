@@ -25,7 +25,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # Add parent directory to path
-current_dir = os.path.dirname(os.path.abspath(_file_))
+current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
@@ -180,3 +180,4 @@ if _name_ == "_main_":
     from helper_functions import chunks_query_retriever
     results = evaluate_rag(chunks_query_retriever)
     print(json.dumps(results, indent=2))
+
